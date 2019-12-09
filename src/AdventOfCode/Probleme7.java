@@ -3,24 +3,28 @@ package AdventOfCode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.Scanner;
+import java.util.*;
 
 public class Probleme7 {
     public static void main(String args[]) throws IOException {
         int[] memory = Arrays.stream(Files.lines(Paths.get("input7.txt")).findFirst().get()
                 .split(","))
                 .mapToInt(Integer::parseInt).toArray();
-
-        int[] phaseSettings = {4,3,2,1,0};
+        ArrayList<String> list = listAllPermutations("01234");
         int inputSignal = 0;
-        for (int phaseSetting : phaseSettings) {
-            System.out.print("Running with phaseSetting " + phaseSetting + " and input " + inputSignal + ". ");
-            inputSignal = runIntcode(phaseSetting, inputSignal, Arrays.copyOf(memory, memory.length));
+        int maxOutput = 0;
+        String maxPhaseSetting = "";
+        for (String perm : list) {
+            for (char c : perm.toCharArray()) {
+                inputSignal = runIntcode(Character.getNumericValue(c), inputSignal, Arrays.copyOf(memory, memory.length));
+            }
+            if (inputSignal > maxOutput) {
+                maxPhaseSetting = perm;
+                maxOutput = inputSignal;
+            }
+            inputSignal = 0;
         }
-        System.out.println("Final thruster output is " + inputSignal);
+        System.out.println("Final thruster output is " + maxOutput + " with phase setting " + maxPhaseSetting);
     }
 
     public static int runIntcode(int phaseSetting, int inputSignal, int[] intcode) {
@@ -50,7 +54,6 @@ public class Probleme7 {
                     operation = "000000" + intcode[(position += 2)];
                     break;
                 case "04":
-                    System.out.println("Output: " + params[0]);
                     return params[0];
                 case "05":
                     if (params[0] != 0) operation = "000000" + intcode[(position = params[1])];
@@ -74,5 +77,21 @@ public class Probleme7 {
         }
         System.out.println("HERE");
         return -1;
+    }
+    private static ArrayList<String> listAllPermutations(String s) {
+        ArrayList<String> list = new ArrayList<>();
+        listAllPermutations("", s, list);
+        return list;
+    }
+
+    private static void listAllPermutations(String prefix, String s, ArrayList<String> list) {
+        if (s.length() > 1) {
+            for (int i = 0; i < s.length(); i++) {
+                listAllPermutations(prefix + s.charAt(i), new StringBuilder(s).delete(i, i+1).toString(), list);
+            }
+        }
+        else {
+            list.add(prefix + s);
+        }
     }
 }
