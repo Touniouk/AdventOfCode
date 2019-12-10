@@ -4,9 +4,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.*;
 
 public class Probleme7 {
-    public static void main(String args[]) throws IOException {
+    static int[] memory;
+
+    public static void main(String args[]) throws IOException, InterruptedException, ExecutionException {
 //        part1();
         new Probleme7().part2();
     }
@@ -32,28 +35,40 @@ public class Probleme7 {
         System.out.println("Final thruster output is " + maxOutput + " with phase setting " + maxPhaseSetting);
     }
 
-    private void part2() throws IOException {
-        int[] memory = Arrays.stream(Files.lines(Paths.get("input7.txt")).findFirst().get()
+    private void part2() throws IOException, InterruptedException, ExecutionException {
+        memory = Arrays.stream(Files.lines(Paths.get("input7.txt")).findFirst().get()
                 .split(","))
                 .mapToInt(Integer::parseInt).toArray();
         ArrayList<String> list = listAllPermutations("56789");
 
-        int[] phaseSettings = {5,6,7,8,9};
+        int max = 0;
+        String sequence = "";
+        for (String s : list) {
+            int thisPerm = tryPermutation(Arrays.stream(s.split("")).mapToInt(Integer::parseInt).toArray());
+            if (thisPerm > max) {
+                max = thisPerm;
+                sequence = s;
+            }
+        }
+        System.out.println("Max = " + max + ", sequence = " + sequence);
+    }
 
-        Amplifier ampE = new Amplifier("amp E", memory, phaseSettings[0]);
-        Amplifier ampD = new Amplifier("amp D", memory, phaseSettings[1], ampE);
+    private static int tryPermutation(int[] phaseSettings) throws InterruptedException, ExecutionException {
+        Amplifier ampE = new Amplifier("amp E", memory, phaseSettings[4]);
+        Amplifier ampD = new Amplifier("amp D", memory, phaseSettings[3], ampE);
         Amplifier ampC = new Amplifier("amp C", memory, phaseSettings[2], ampD);
-        Amplifier ampB = new Amplifier("amp B", memory, phaseSettings[3], ampC);
-        Amplifier ampA = new Amplifier("amp A", memory, phaseSettings[4], ampB);
+        Amplifier ampB = new Amplifier("amp B", memory, phaseSettings[1], ampC);
+        Amplifier ampA = new Amplifier("amp A", memory, phaseSettings[0], ampB);
         ampE.setAfter(ampA);
-
-        Thread firstThread = new Thread(ampA);
-        firstThread.start();
-        new Thread(ampB).start();
-        new Thread(ampC).start();
-        new Thread(ampD).start();
-        new Thread(ampE).start();
         ampA.passInput(0);
+
+        List<Callable<Integer>> amps = Arrays.asList(ampA, ampB, ampC, ampD, ampE);
+        ExecutorService executor = Executors.newFixedThreadPool(amps.size());
+        List<Future<Integer>> futures = executor.invokeAll(amps);
+        int finalOutput = futures.get(4).get();
+
+        System.out.println("Phase settings " + Arrays.toString(phaseSettings) + " output " + finalOutput);
+        return finalOutput;
     }
 
     private static ArrayList<String> listAllPermutations(String s) {
@@ -72,13 +87,14 @@ public class Probleme7 {
     }
 }
 
-class Amplifier implements Runnable {
+class Amplifier implements Callable<Integer> {
     Amplifier after;
     String name;
-    int input;
+    Queue<Integer> inputQueue;
     int[] memory;
     int[] intcode;
     int phaseSetting;
+    boolean running = false;
 
     public Amplifier(String name, int[] memory, int phaseSetting, Amplifier after) {
         this(name, memory, phaseSetting);
@@ -90,35 +106,24 @@ class Amplifier implements Runnable {
         this.memory = memory;
         this.phaseSetting = phaseSetting;
         intcode = Arrays.copyOf(memory, memory.length);
-        input = 0;
+        inputQueue = new PriorityQueue<>();
     }
 
     @Override
-    public void run() {
-        System.out.println(name + " started and is waiting");
-        waitForInput();
-        System.out.println(name + " received input " + input);
-        runIntcode(input);
-        System.out.println(name + " calling thread " + after.name + " with input 3");
-        after.passInput(90);
-        System.out.println(name + " done");
-    }
+    public Integer call() throws InterruptedException {
+//        System.out.println(name + " started");
+        running = true;
+        Thread.sleep(50);
 
-    private synchronized void waitForInput() {
-        try {
-            wait();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void runIntcode(int inputSignal) {
+        // Setup
         String operation = "000000" + intcode[0];
         int position = 0, input = 0;
         String opcode = operation.substring(operation.length()-2);
         String[] paramModes = operation.substring(operation.length()-5, operation.length()-2).split("");
         int[] params = {0,0,0};
+        int finalOutput = 0;
 
+        // Start
         while (!opcode.equals("99")) {
             try {
                 params[0] = paramModes[2].equals("1") ? intcode[position + 1] : intcode[intcode[position + 1]];
@@ -134,12 +139,23 @@ class Amplifier implements Runnable {
                     operation = "000000" + intcode[(position += 4)];
                     break;
                 case "03":
-                    intcode[intcode[position + 1]] = input == 0 ? phaseSetting : inputSignal;
-                    input++;
+                    if (input == 0) {
+                        intcode[intcode[position + 1]] = phaseSetting;
+                        input++;
+                    } else {
+//                        System.out.println(name + " is waiting for input");
+                        if (inputQueue.isEmpty()) waitForSignal(); // Waiting for input
+//                        System.out.println(name + " received input " + inputQueue.peek());
+                        intcode[intcode[position + 1]] = inputQueue.poll();
+                    }
                     operation = "000000" + intcode[(position += 2)];
                     break;
                 case "04":
-                    input = params[0];
+//                    System.out.println(name + " calling thread " + after.name + " with input " + params[0]);
+                    if (after.running) after.passInput(params[0]);
+                    else finalOutput = params[0];
+                    operation = "000000" + intcode[(position += 2)];
+                    break;
                 case "05":
                     if (params[0] != 0) operation = "000000" + intcode[(position = params[1])];
                     else operation = "000000" + intcode[(position += 3)];
@@ -160,10 +176,21 @@ class Amplifier implements Runnable {
             opcode = operation.substring(operation.length()-2);
             paramModes = operation.substring(operation.length()-5, operation.length()-2).split("");
         }
+//        System.out.println(name + " done");
+        running = false;
+        return finalOutput;
+    }
+
+    private synchronized void waitForSignal() {
+        try {
+            wait();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public synchronized void passInput(int input) {
-        this.input = input;
+        inputQueue.add(input);
         notify();
     }
 
