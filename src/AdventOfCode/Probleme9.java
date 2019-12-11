@@ -12,14 +12,14 @@ public class Probleme9 {
         part2();
     }
 
-    public static void part1() throws IOException {
+    private static void part1() throws IOException {
         IntcodeComputer computer = new IntcodeComputer(Arrays.stream(Files.lines(Paths.get("input9.txt"))
                 .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray(), 1);
         computer.compute();
         System.out.println(computer.getOutputQueue().poll());
     }
 
-    public static void part2() throws IOException {
+    private static void part2() throws IOException {
         IntcodeComputer computer = new IntcodeComputer(Arrays.stream(Files.lines(Paths.get("input9.txt"))
                 .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray(), 2);
         computer.compute();
@@ -32,7 +32,7 @@ class IntcodeComputer {
     private long[] intcode;
     private int phaseSetting;
     private int position;
-    int isPhaseSetting;
+    private int isPhaseSetting;
     private String op;
     private int relativeBase;
     private Queue<Long> inputQueue;
@@ -56,7 +56,7 @@ class IntcodeComputer {
         intcode = Arrays.copyOf(memory, 10000);
     }
 
-    public void compute() {
+    void compute() {
         op = "000000" + intcode[0];
         String opcode = op.substring(op.length() - 2);
         String[] paramModes = op.substring(op.length() - 5, op.length() - 2).split("");
@@ -157,7 +157,7 @@ class IntcodeComputer {
         op = "000000" + intcode[(position += steps)];
     }
 
-    public Queue<Long> getOutputQueue() {
+    Queue<Long> getOutputQueue() {
         return outputQueue;
     }
 }
