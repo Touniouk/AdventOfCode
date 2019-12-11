@@ -25,29 +25,28 @@ public class Probleme6 {
 }
 
 class Planet {
-    Planet orbit;
-    List<Planet> satellites;
+    private Planet orbit;
+    private List<Planet> satellites;
     Set<Planet> orbits;
-    int numberOfOrbits = -1;
-    String name;
+    private int numberOfOrbits = -1;
+    private String name;
 
-    public Planet(String name) {
+    Planet(String name) {
         this.name = name;
         satellites = new ArrayList<>();
         orbits = new HashSet<>();
     }
 
-    public void setOrbit(Planet planet) {
+    void setOrbit(Planet planet) {
         orbit = planet;
     }
 
-    public void addOrbit(Planet p) {
+    private void addOrbit(Planet p) {
         orbits.add(p);
         orbits.addAll(p.orbits);
-//        System.out.println("Added " + p + p.orbits);
     }
 
-    public void addSatellite(Planet p) {
+    void addSatellite(Planet p) {
         satellites.add(p);
     }
 
@@ -56,14 +55,12 @@ class Planet {
         return name;
     }
 
-    public int countAllOrbitsRecursive() {
+    int countAllOrbitsRecursive() {
         return numberOfOrbits = (numberOfOrbits == -1 ? (orbit == null ? 0 : 1 + orbit.countAllOrbitsRecursive()) : numberOfOrbits);
     }
 
-    public void addOrbitsRecursive() {
-//        System.out.println("Currently on " + name);
+    void addOrbitsRecursive() {
         satellites.forEach(s -> {
-//            System.out.println("Looking at sattelite " + s.name);
             s.addOrbit(this);
             s.addOrbitsRecursive();
         });
