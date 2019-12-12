@@ -46,13 +46,19 @@ class Asteroid {
     }
 
     void buildAngleMap(List<Asteroid> asteroids) {
-        asteroids.forEach(a -> {
-            double angle;
-            if (distanceMap.get(a).x == 0) angle = 90d;
-            else angle = Math.toDegrees(Math.atan(distanceMap.get(a).y / distanceMap.get(a).x));
+        for (Asteroid a : asteroids) {
+            double angle, x = distanceMap.get(a).x, y = distanceMap.get(a).y;
+            if (x == 0 && y == 0) continue;
+            else if (x == 0 && y > 0) angle = 90d;
+            else if (x == 0 && y < 0) angle = -90d;
+            else if (y == 0 && x < 0) angle = 180;
+            else angle = Math.toDegrees(Math.atan((double) distanceMap.get(a).y / (double) distanceMap.get(a).x));
+            if (x > 0 && y < 0) angle += 180;
+            else if (x < 0 && y > 0) angle += 180;
+            else if (x < 0 && y < 0) angle -= 180;
             angleMap.computeIfAbsent(angle, k -> new HashSet<>());
             angleMap.get(angle).add(a);
-        });
+        }
     }
 
     @Override
@@ -71,15 +77,6 @@ class Asteroid {
 
         Coords minus(Coords coord) {
             return new Coords(this.x-coord.x, this.y-coord.y);
-        }
-
-        Coords divide(Coords coord) {
-            return new Coords(this.x/coord.x, this.y/coord.y);
-        }
-
-        boolean isMultiple(Coords coord) {
-            Coords factor = this.divide(coord);
-            return factor.x == factor.y;
         }
 
         @Override
