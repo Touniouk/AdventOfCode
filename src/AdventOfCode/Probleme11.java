@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,11 +14,10 @@ public class Probleme11 {
 
     public static void main(String... args) throws IOException, InterruptedException {
         part1();
-//        part2();
-
+        part2();
     }
 
-    private static void part1() throws IOException, InterruptedException {
+    private static void part1() throws InterruptedException, IOException {
         Robot robot = new Robot(new IntcodeComputer(Arrays.stream(
                 Files.lines(Paths.get("input11.txt")).findFirst().get().split(","))
                 .mapToLong(Long::parseLong).toArray(), false), 0, false);
@@ -25,15 +25,19 @@ public class Probleme11 {
         System.out.println("#tiles visited: " + robot.getTraversedPanels().size());
     }
 
-    private static void part2() throws IOException, InterruptedException {
-
+    private static void part2() throws InterruptedException, IOException {
+        Robot robot = new Robot(new IntcodeComputer(Arrays.stream(
+                Files.lines(Paths.get("input11.txt")).findFirst().get().split(","))
+                .mapToLong(Long::parseLong).toArray(), false), 1, false);
+        robot.runComputer();
+        robot.printAllPanels();
     }
 }
 
 class Robot {
     private final IntcodeComputer computer;
     private Coords currentPanel;
-    private final Map<String, Integer> traversedPanels;
+    private final Map<Coords, Integer> traversedPanels;
     private Direction facing = Direction.UP;
     private boolean logging;
 
@@ -42,7 +46,7 @@ class Robot {
         this.logging = logging;
         traversedPanels = new HashMap<>();
         currentPanel = new Coords(0, 0);
-        traversedPanels.put(currentPanel.toString(), startingColor);
+        traversedPanels.put(currentPanel, startingColor);
     }
 
     void runComputer() throws InterruptedException {
@@ -50,17 +54,34 @@ class Robot {
         long input;
         do {
             // Pass color of current cell
-            computer.getInputQueue().put((long) traversedPanels.get(currentPanel.toString()));
+            computer.getInputQueue().put((long) traversedPanels.get(currentPanel));
             // Wait for output, update color
             log("Waiting for color output");
             if ((input = computer.getOutputQueue().take()) == computer.POISON)break;
-            traversedPanels.put(currentPanel.toString(), toIntExact(input));
+            traversedPanels.put(currentPanel, toIntExact(input));
             // Wait for output, move in specified direction
             log("waiting for move output");
             if ((input = computer.getOutputQueue().take()) == computer.POISON)break;
             move(input);
-            traversedPanels.putIfAbsent(currentPanel.toString(), 0);
+            traversedPanels.putIfAbsent(currentPanel, 0);
         } while (computer.isRunning());
+    }
+
+    void printAllPanels() {
+        // Get highest, lowest, most to the right and most to the left panels
+        int lowest   = traversedPanels.keySet().stream().min(Comparator.comparingInt(k -> k.y)).get().y;
+        int highest  = traversedPanels.keySet().stream().max(Comparator.comparingInt(k -> k.y)).get().y;
+        int leftest  = traversedPanels.keySet().stream().min(Comparator.comparingInt(k -> k.x)).get().x;
+        int rightest = traversedPanels.keySet().stream().max(Comparator.comparingInt(k -> k.x)).get().x;
+
+        Integer temp;
+        for (int y = highest+1; y >= lowest-1; y--) {
+            for (int x = leftest - 1; x <= rightest + 1; x++) {
+                if ((temp = traversedPanels.get(new Coords(x, y))) != null && temp == 1) System.out.print("#");
+                else System.out.print(" ");
+            }
+            System.out.println();
+        }
     }
 
     private void move(long direction) {
@@ -90,7 +111,7 @@ class Robot {
         currentPanel = new Coords(currentPanel.x, currentPanel.y + 1);
     }
 
-    public Map<String, Integer> getTraversedPanels() {
+    Map<Coords, Integer> getTraversedPanels() {
         return traversedPanels;
     }
 
