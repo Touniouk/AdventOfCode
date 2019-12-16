@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+
 import static java.lang.Math.toIntExact;
 
 public class Probleme9 {
@@ -13,45 +17,48 @@ public class Probleme9 {
     }
 
     private static void part1() throws IOException, InterruptedException {
+        // TODO: Don't use poll()
         IntcodeComputer computer = new IntcodeComputer(Arrays.stream(Files.lines(Paths.get("input9.txt"))
-                .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray(), null, 1, false);
+                .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray(), 1, false);
         computer.compute();
         System.out.println(computer.getOutputQueue().poll());
     }
 
     private static void part2() throws IOException, InterruptedException {
+        // TODO: Don't use poll()
         IntcodeComputer computer = new IntcodeComputer(Arrays.stream(Files.lines(Paths.get("input9.txt"))
-                .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray(), null, 2, false);
+                .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray(), 2, false);
         computer.compute();
         System.out.println(computer.getOutputQueue().poll());
     }
 }
 
 class IntcodeComputer implements Runnable {
-    private long[] memory;
+    final long POISON = -123_456_789;
+
+    private final long[] memory;
     private long[] intcode;
     private int phaseSetting;
     private int position;
     private int isPhaseSetting;
     private String op;
     private int relativeBase;
-    private Queue<Long> inputQueue;
-    private Queue<Long> outputQueue;
-    private Operator operator;
+    private final BlockingQueue<Long> inputQueue;
+    private final BlockingQueue<Long> outputQueue;
+    private boolean isRunning = false;
     private boolean logging;
 
-    IntcodeComputer(long[] memory, Operator operator, boolean logging) {
+    IntcodeComputer(long[] memory, boolean logging) {
         this.memory = memory;
         resetIntcode();
-        inputQueue = new ArrayDeque<>();
-        outputQueue = new ArrayDeque<>();
+        inputQueue = new ArrayBlockingQueue<>(1);
+        outputQueue = new LinkedBlockingDeque<>();
         isPhaseSetting = 1;
         this.logging = logging;
-        this.operator = operator;
     }
 
-    IntcodeComputer(long[] memory, Operator operator, int phaseSetting, boolean logging) {
-        this(memory, operator, logging);
+    IntcodeComputer(long[] memory, int phaseSetting, boolean logging) {
+        this(memory, logging);
         this.phaseSetting = phaseSetting;
         isPhaseSetting = 0;
     }
@@ -62,10 +69,14 @@ class IntcodeComputer implements Runnable {
 
     @Override
     public void run() {
+        isRunning = true;
         try {
             compute();
         } catch (InterruptedException e) {
             e.printStackTrace();
+        } finally {
+            isRunning = false;
+            outputQueue.add(POISON);
         }
     }
 
@@ -94,6 +105,7 @@ class IntcodeComputer implements Runnable {
             opcode = op.substring(op.length() - 2);
             paramModes = op.substring(op.length() - 5, op.length() - 2).split("");
         }
+        log("Finished Computing");
     }
 
     private void setParamOne(long[] params, String[] paramModes) {
@@ -118,18 +130,17 @@ class IntcodeComputer implements Runnable {
             if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 1])] = phaseSetting;
             else intcode[toIntExact(intcode[position + 1] + relativeBase)] = phaseSetting;
         } else {
-            while (inputQueue.isEmpty()) waitForSignal();
-            log("Input = " + inputQueue.peek());
-            if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 1])] = inputQueue.poll();
-            else intcode[toIntExact(intcode[position + 1] + relativeBase)] = inputQueue.poll();
+            long input = inputQueue.take();
+            log("Input = " + input);
+            if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 1])] = input;
+            else intcode[toIntExact(intcode[position + 1] + relativeBase)] = input;
         }
         increasePosition(2);
     }
 
-    private void output(long output) {
+    private void output(long output) throws InterruptedException {
         log("Output = " + output);
-        outputQueue.add(output);
-        if (operator != null) operator.nudge();
+        outputQueue.put(output);
         increasePosition(2);
     }
 
@@ -148,13 +159,13 @@ class IntcodeComputer implements Runnable {
     }
 
     private void jumpIfTrue(long[] params) {
-        log("Jump if true");
+        log("Jump if true: " + params[0]);
         if (params[0] != 0) op = "000000" + intcode[(position = toIntExact(params[1]))];
         else increasePosition(3);
     }
 
     private void jumpIfFalse(long[] params) {
-        log("Jump if false");
+        log("Jump if false: " + params[0]);
         if (params[0] == 0) op = "000000" + intcode[(position = toIntExact(params[1]))];
         else increasePosition(3);
     }
@@ -174,7 +185,7 @@ class IntcodeComputer implements Runnable {
     }
 
     private void setRelativeBase(long[] params) {
-        log("Set relative base");
+        log("Set relative base to " + (relativeBase+params[0]));
         relativeBase += params[0];
         increasePosition(2);
     }
@@ -183,25 +194,19 @@ class IntcodeComputer implements Runnable {
         op = "000000" + intcode[(position += steps)];
     }
 
-    public synchronized void addInput(long input) {
-        inputQueue.add(input);
-        notify();
-    }
-
-    private synchronized void waitForSignal() {
-        try { wait(); }
-        catch (InterruptedException e) { e.printStackTrace(); }
-    }
-
     private void log(String logMessage) {
         if (logging) System.out.println("> Computer: " + logMessage);
     }
 
-    Queue<Long> getOutputQueue() {
+    BlockingQueue<Long> getOutputQueue() {
         return outputQueue;
     }
-}
 
-interface Operator {
-    void nudge();
+    BlockingQueue<Long> getInputQueue() {
+        return inputQueue;
+    }
+
+    boolean isRunning() {
+        return isRunning;
+    }
 }

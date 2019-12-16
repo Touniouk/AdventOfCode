@@ -77,11 +77,11 @@ class Asteroid {
         return null;
     }
 
-    public Map<Double, Queue<Asteroid>> getAngleMap() {
+    Map<Double, Queue<Asteroid>> getAngleMap() {
         return angleMap;
     }
 
-    public int getNumberRepresentation() {
+    int getNumberRepresentation() {
         return coords.x * 100 + coords.y;
     }
 
@@ -92,8 +92,8 @@ class Asteroid {
 }
 
 class Coords {
-    int x;
-    int y;
+    final int x;
+    final int y;
 
     Coords(int x, int y) {
         this.x = x;
@@ -106,5 +106,10 @@ class Coords {
 
     static int distanceDifference(Coords c1, Coords c2) {
         return Math.abs(c1.x) + Math.abs(c1.y) - (Math.abs(c2.x) + Math.abs(c2.y));
+    }
+
+    @Override
+    public String toString() {
+        return "[" + x + "," + y + "]";
     }
 }
