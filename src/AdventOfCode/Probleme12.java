@@ -31,6 +31,19 @@ public class Probleme12 {
 
     private static void part2(List<Moon> moons) {
         // TODO
+        Coord3d nullVelocity = new Coord3d(0, 0, 0);
+        long counter = 0;
+        while (true) {
+            step(moons);
+            counter++;
+            if (counter%1000000 == 0) System.out.println("Step " + counter + " | " + moons);
+            if (moons.get(0).velocity.equals(nullVelocity) &&
+                    moons.get(0).velocity.equals(nullVelocity) &&
+                    moons.get(0).velocity.equals(nullVelocity)) {
+                System.out.println("Step " + counter + " | " + moons);
+                return;
+            }
+        }
     }
 
     static void step(List<Moon> moons) {
