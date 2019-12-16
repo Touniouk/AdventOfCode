@@ -16,16 +16,21 @@ public class Probleme12 {
                     Integer.parseInt(s[1].substring(2)),
                     Integer.parseInt(s[2].substring(2))));
         });
-        runForCycles(100, moons);
-        System.out.println(moons.stream().mapToInt(Moon::calculateEnergy).sum());
+        part1(moons);
+        part2(moons);
     }
 
-    static void runForCycles(int cycles, List<Moon> moons) {
+    private static void part1(List<Moon> moons) {
         System.out.println("Step 0 | " + moons);
-        for (int i = 1; i <= cycles; i++) {
+        for (int i = 1; i <= 1000; i++) {
             step(moons);
             System.out.println("Step " + i + " | " + moons);
         }
+        System.out.println(moons.stream().mapToInt(Moon::calculateEnergy).sum());
+    }
+
+    private static void part2(List<Moon> moons) {
+        // TODO
     }
 
     static void step(List<Moon> moons) {
