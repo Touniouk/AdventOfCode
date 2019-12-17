@@ -25,7 +25,7 @@ public class Probleme13 {
         memory = Arrays.stream(Files.lines(Paths.get("input13.txt"))
                 .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray();
         Probleme13 p = new Probleme13();
-        p.logger = new Logger(p, LogLevel.INFO);
+        p.logger = new Logger(p, LogLevel.DEBUG);
 //        p.part1();
         p.part2();
     }
@@ -41,23 +41,23 @@ public class Probleme13 {
     private void part2() throws InterruptedException {
         long[] memory = Arrays.copyOf(Probleme13.memory, Probleme13.memory.length);
         memory[0] = 2;
-        IntcodeComputer computer = new IntcodeComputer(memory, LogLevel.INFO);
+        IntcodeComputer computer = new IntcodeComputer(memory, LogLevel.IO);
         GUI = new GameGUI(computer, true);
         GUI.buildAndShowGUI();
-        logger.log(LogLevel.INFO, "Final score: " + runComputer(computer));
+        logger.log(LogLevel.INFO, "Final score: " + Arrays.toString(runComputer(computer)));
         GUI.close();
     }
 
-    private long runComputer(IntcodeComputer computer) throws InterruptedException {
+    private long[] runComputer(IntcodeComputer computer) throws InterruptedException {
         new Thread(computer).start();
         int[] input = new int[3];
         long score = 0;
         do {
             // Get all three outputs
             logger.log(LogLevel.DEBUG, "Waiting for output: " + computer.getOutputQueue());
-            if ((input[0] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) break;
-            if ((input[1] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) break;
-            if ((input[2] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) break;
+            if ((input[0] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) ;
+            if ((input[1] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) ;
+            if ((input[2] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) ;
             // Check if it's a score update
             if (input[0] == -1 && input[1] == 0) {
                 logger.log(LogLevel.UNNECESSARY, "Score: " + score);
@@ -71,7 +71,7 @@ public class Probleme13 {
             // Update the GUI
             if (GUI != null) GUI.updateGUI(getGameBoard(), String.valueOf(score));
         } while (computer.isRunning());
-        return score;
+        return new long[]{score, input[2]};
     }
 
     private String getTile(int tileId) {
@@ -134,7 +134,7 @@ public class Probleme13 {
         private void buildAndShowGUI() {
             frame = new JFrame();
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setLocationByPlatform(true);
+            frame.setLocationRelativeTo(null);
             JPanel mainComp = new JPanel(new BorderLayout());
             score = new JLabel("0");
             textArea = new JTextArea(25, 43);
