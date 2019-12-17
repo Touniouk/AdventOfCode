@@ -16,19 +16,37 @@ public class Probleme12 {
                     Integer.parseInt(s[1].substring(2)),
                     Integer.parseInt(s[2].substring(2))));
         });
-        runForCycles(100, moons);
-        System.out.println(moons.stream().mapToInt(Moon::calculateEnergy).sum());
+        part1(moons);
+        part2(moons);
     }
 
-    private static void runForCycles(int cycles, List<Moon> moons) {
+    private static void part1(List<Moon> moons) {
         System.out.println("Step 0 | " + moons);
-        for (int i = 1; i <= cycles; i++) {
+        for (int i = 1; i <= 1000; i++) {
             step(moons);
             System.out.println("Step " + i + " | " + moons);
         }
+        System.out.println(moons.stream().mapToInt(Moon::calculateEnergy).sum());
     }
 
-    private static void step(List<Moon> moons) {
+    private static void part2(List<Moon> moons) {
+        // TODO
+        Coord3d nullVelocity = new Coord3d(0, 0, 0);
+        long counter = 0;
+        while (true) {
+            step(moons);
+            counter++;
+            if (counter%1000000 == 0) System.out.println("Step " + counter + " | " + moons);
+            if (moons.get(0).velocity.equals(nullVelocity) &&
+                    moons.get(0).velocity.equals(nullVelocity) &&
+                    moons.get(0).velocity.equals(nullVelocity)) {
+                System.out.println("Step " + counter + " | " + moons);
+                return;
+            }
+        }
+    }
+
+    static void step(List<Moon> moons) {
         moons.forEach(m -> moons.forEach(mInner -> {
             if      (m.position.x > mInner.position.x) m.velocity.x--;
             else if (m.position.x < mInner.position.x) m.velocity.x++;
