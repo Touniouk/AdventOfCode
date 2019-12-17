@@ -7,28 +7,27 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-
 import static java.lang.Math.toIntExact;
 
 public class Probleme11 {
 
+    private static long[] memory;
+
     public static void main(String... args) throws IOException, InterruptedException {
+        memory = Arrays.stream(Files.lines(Paths.get("input11.txt"))
+                .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray();
         part1();
         part2();
     }
 
-    private static void part1() throws InterruptedException, IOException {
-        Robot robot = new Robot(new IntcodeComputer(Arrays.stream(
-                Files.lines(Paths.get("input11.txt")).findFirst().get().split(","))
-                .mapToLong(Long::parseLong).toArray(), false), 0, false);
+    private static void part1() throws InterruptedException {
+        Robot robot = new Robot(new IntcodeComputer(memory, LoggingLevel.QUIET), 0, LoggingLevel.QUIET);
         robot.runComputer();
         System.out.println("#tiles visited: " + robot.getTraversedPanels().size());
     }
 
-    private static void part2() throws InterruptedException, IOException {
-        Robot robot = new Robot(new IntcodeComputer(Arrays.stream(
-                Files.lines(Paths.get("input11.txt")).findFirst().get().split(","))
-                .mapToLong(Long::parseLong).toArray(), false), 1, false);
+    private static void part2() throws InterruptedException {
+        Robot robot = new Robot(new IntcodeComputer(memory, LoggingLevel.QUIET), 1, LoggingLevel.QUIET);
         robot.runComputer();
         robot.printAllPanels();
     }
@@ -39,9 +38,9 @@ class Robot {
     private Coords currentPanel;
     private final Map<Coords, Integer> traversedPanels;
     private Direction facing = Direction.UP;
-    private boolean logging;
+    private LoggingLevel logging;
 
-    Robot(IntcodeComputer computer, int startingColor, boolean logging) {
+    Robot(IntcodeComputer computer, int startingColor, LoggingLevel logging) {
         this.computer = computer;
         this.logging = logging;
         traversedPanels = new HashMap<>();
@@ -56,15 +55,16 @@ class Robot {
             // Pass color of current cell
             computer.getInputQueue().put((long) traversedPanels.get(currentPanel));
             // Wait for output, update color
-            log("Waiting for color output");
-            if ((input = computer.getOutputQueue().take()) == computer.POISON)break;
+            log(LoggingLevel.DEBUG, "Waiting for color output");
+            if ((input = computer.getOutputQueue().take()) == computer.POISON) break;
             traversedPanels.put(currentPanel, toIntExact(input));
             // Wait for output, move in specified direction
-            log("waiting for move output");
-            if ((input = computer.getOutputQueue().take()) == computer.POISON)break;
+            log(LoggingLevel.DEBUG, "waiting for move output");
+            if ((input = computer.getOutputQueue().take()) == computer.POISON) break;
             move(input);
             traversedPanels.putIfAbsent(currentPanel, 0);
         } while (computer.isRunning());
+        log(LoggingLevel.INFO, "Done running computer");
     }
 
     void printAllPanels() {
@@ -115,8 +115,8 @@ class Robot {
         return traversedPanels;
     }
 
-    private void log(String logMessage) {
-        if (logging) System.out.println("> Robot: " + logMessage);
+    private void log(LoggingLevel messageLevel, String logMessage) {
+        if (messageLevel.level <= logging.level) System.out.println("> Robot: " + logMessage);
     }
 
     enum Direction {

@@ -20,7 +20,7 @@ public class Probleme12 {
         System.out.println(moons.stream().mapToInt(Moon::calculateEnergy).sum());
     }
 
-    static void runForCycles(int cycles, List<Moon> moons) {
+    private static void runForCycles(int cycles, List<Moon> moons) {
         System.out.println("Step 0 | " + moons);
         for (int i = 1; i <= cycles; i++) {
             step(moons);
@@ -28,7 +28,7 @@ public class Probleme12 {
         }
     }
 
-    static void step(List<Moon> moons) {
+    private static void step(List<Moon> moons) {
         moons.forEach(m -> moons.forEach(mInner -> {
             if      (m.position.x > mInner.position.x) m.velocity.x--;
             else if (m.position.x < mInner.position.x) m.velocity.x++;
