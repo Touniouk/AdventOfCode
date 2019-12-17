@@ -21,13 +21,13 @@ public class Probleme11 {
     }
 
     private static void part1() throws InterruptedException {
-        Robot robot = new Robot(new IntcodeComputer(memory, LoggingLevel.QUIET), 0, LoggingLevel.QUIET);
+        Robot robot = new Robot(new IntcodeComputer(memory, LogLevel.DEBUG), 0, LogLevel.DEBUG);
         robot.runComputer();
         System.out.println("#tiles visited: " + robot.getTraversedPanels().size());
     }
 
     private static void part2() throws InterruptedException {
-        Robot robot = new Robot(new IntcodeComputer(memory, LoggingLevel.QUIET), 1, LoggingLevel.QUIET);
+        Robot robot = new Robot(new IntcodeComputer(memory, LogLevel.QUIET), 1, LogLevel.QUIET);
         robot.runComputer();
         robot.printAllPanels();
     }
@@ -38,11 +38,11 @@ class Robot {
     private Coords currentPanel;
     private final Map<Coords, Integer> traversedPanels;
     private Direction facing = Direction.UP;
-    private LoggingLevel logging;
+    private Logger logger;
 
-    Robot(IntcodeComputer computer, int startingColor, LoggingLevel logging) {
+    Robot(IntcodeComputer computer, int startingColor, LogLevel logging) {
         this.computer = computer;
-        this.logging = logging;
+        logger = new Logger(this, logging);
         traversedPanels = new HashMap<>();
         currentPanel = new Coords(0, 0);
         traversedPanels.put(currentPanel, startingColor);
@@ -50,21 +50,21 @@ class Robot {
 
     void runComputer() throws InterruptedException {
         new Thread(computer).start();
-        long input;
+        long[] input = new long[2];
         do {
             // Pass color of current cell
+            logger.log(LogLevel.DEBUG, "Waiting until computer asks for input");
+            if (computer.getInputQueue().take() == computer.POISON) break; // Throwaway
             computer.getInputQueue().put((long) traversedPanels.get(currentPanel));
-            // Wait for output, update color
-            log(LoggingLevel.DEBUG, "Waiting for color output");
-            if ((input = computer.getOutputQueue().take()) == computer.POISON) break;
-            traversedPanels.put(currentPanel, toIntExact(input));
-            // Wait for output, move in specified direction
-            log(LoggingLevel.DEBUG, "waiting for move output");
-            if ((input = computer.getOutputQueue().take()) == computer.POISON) break;
-            move(input);
+            // Wait for output, update color and move
+            logger.log(LogLevel.DEBUG, "Waiting for color and move output");
+            if ((input[0] = computer.getOutputQueue().take()) == computer.POISON) break;
+            if ((input[1] = computer.getOutputQueue().take()) == computer.POISON) break;
+            traversedPanels.put(currentPanel, toIntExact(input[0]));
+            move(input[1]);
             traversedPanels.putIfAbsent(currentPanel, 0);
         } while (computer.isRunning());
-        log(LoggingLevel.INFO, "Done running computer");
+        logger.log(LogLevel.INFO, "Done running computer");
     }
 
     void printAllPanels() {
@@ -113,10 +113,6 @@ class Robot {
 
     Map<Coords, Integer> getTraversedPanels() {
         return traversedPanels;
-    }
-
-    private void log(LoggingLevel messageLevel, String logMessage) {
-        if (messageLevel.level <= logging.level) System.out.println("> Robot: " + logMessage);
     }
 
     enum Direction {

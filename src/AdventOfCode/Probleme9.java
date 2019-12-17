@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.SynchronousQueue;
 
 import static java.lang.Math.toIntExact;
 
@@ -23,14 +23,14 @@ public class Probleme9 {
 
     private static void part1() throws InterruptedException {
         // TODO: Don't use poll()
-        IntcodeComputer computer = new IntcodeComputer(memory, 1, LoggingLevel.QUIET);
+        IntcodeComputer computer = new IntcodeComputer(memory, 1, LogLevel.QUIET);
         computer.compute();
         System.out.println(computer.getOutputQueue().poll());
     }
 
     private static void part2() throws InterruptedException {
         // TODO: Don't use poll()
-        IntcodeComputer computer = new IntcodeComputer(memory, 2, LoggingLevel.QUIET);
+        IntcodeComputer computer = new IntcodeComputer(memory, 2, LogLevel.QUIET);
         computer.compute();
         System.out.println(computer.getOutputQueue().poll());
     }
@@ -49,18 +49,18 @@ class IntcodeComputer implements Runnable {
     private final BlockingQueue<Long> inputQueue;
     private final BlockingQueue<Long> outputQueue;
     private boolean isRunning = false;
-    private LoggingLevel logging;
+    private Logger logger;
 
-    IntcodeComputer(long[] memory, LoggingLevel logging) {
+    IntcodeComputer(long[] memory, LogLevel logging) {
         this.memory = memory;
         resetIntcode();
-        inputQueue = new ArrayBlockingQueue<>(1);
+        inputQueue = new SynchronousQueue<>();
         outputQueue = new LinkedBlockingDeque<>();
         isPhaseSetting = 1;
-        this.logging = logging;
+        logger = new Logger(this, logging);
     }
 
-    IntcodeComputer(long[] memory, int phaseSetting, LoggingLevel logging) {
+    IntcodeComputer(long[] memory, int phaseSetting, LogLevel logging) {
         this(memory, logging);
         this.phaseSetting = phaseSetting;
         isPhaseSetting = 0;
@@ -79,7 +79,14 @@ class IntcodeComputer implements Runnable {
             e.printStackTrace();
         } finally {
             isRunning = false;
-            outputQueue.add(POISON);
+            logger.log(LogLevel.IO, "Outputting POISON");
+            try {
+                inputQueue.offer(POISON);
+                outputQueue.put(POISON);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            logger.log(LogLevel.DEBUG, "Done running");
         }
     }
 
@@ -108,7 +115,7 @@ class IntcodeComputer implements Runnable {
             opcode = op.substring(op.length() - 2);
             paramModes = op.substring(op.length() - 5, op.length() - 2).split("");
         }
-        log(LoggingLevel.INFO, "Finished Computing");
+        logger.log(LogLevel.INFO, "Finished Computing");
     }
 
     private void setParamOne(long[] params, String[] paramModes) {
@@ -129,13 +136,14 @@ class IntcodeComputer implements Runnable {
 
     private void input(String paramMode, int isPhaseSetting) throws InterruptedException {
         if (++isPhaseSetting == 1) {
-            log(LoggingLevel.IO, "Input = " + phaseSetting);
+            logger.log(LogLevel.IO, "Input = " + phaseSetting);
             if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 1])] = phaseSetting;
             else intcode[toIntExact(intcode[position + 1] + relativeBase)] = phaseSetting;
         } else {
-            log(LoggingLevel.IO, "Waiting for input");
+            logger.log(LogLevel.IO, "Waiting for input");
+            inputQueue.put(1L); // Throwaway to show the Producer we want a value
             long input = inputQueue.take();
-            log(LoggingLevel.IO, "Input = " + input);
+            logger.log(LogLevel.IO, "Input = " + input);
             if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 1])] = input;
             else intcode[toIntExact(intcode[position + 1] + relativeBase)] = input;
         }
@@ -143,63 +151,59 @@ class IntcodeComputer implements Runnable {
     }
 
     private void output(long output) throws InterruptedException {
-        log(LoggingLevel.IO, "Output = " + output);
+        logger.log(LogLevel.IO, "Output = " + output);
         outputQueue.put(output);
         increasePosition(2);
     }
 
     private void add(long[] params, String paramMode) {
-        log(LoggingLevel.DEBUG, "Add");
+        logger.log(LogLevel.DEBUG, "Add");
         if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 3])] = params[0] + params[1];
         else intcode[toIntExact(intcode[position + 3] + relativeBase)] = params[0] + params[1];
         increasePosition(4);
     }
 
     private void multiply(long[] params, String paramMode) {
-        log(LoggingLevel.DEBUG, "Multiply");
+        logger.log(LogLevel.DEBUG, "Multiply");
         if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 3])] = params[0] * params[1];
         else intcode[toIntExact(intcode[position + 3] + relativeBase)] = params[0] * params[1];
         increasePosition(4);
     }
 
     private void jumpIfTrue(long[] params) {
-        log(LoggingLevel.DEBUG, "Jump if true: " + params[0]);
+        logger.log(LogLevel.DEBUG, "Jump if true: " + params[0]);
         if (params[0] != 0) op = "000000" + intcode[(position = toIntExact(params[1]))];
         else increasePosition(3);
     }
 
     private void jumpIfFalse(long[] params) {
-        log(LoggingLevel.DEBUG, "Jump if false: " + params[0]);
+        logger.log(LogLevel.DEBUG, "Jump if false: " + params[0]);
         if (params[0] == 0) op = "000000" + intcode[(position = toIntExact(params[1]))];
         else increasePosition(3);
     }
 
     private void lessThan(long[] params, String paramMode) {
-        log(LoggingLevel.DEBUG, "Less than");
+        logger.log(LogLevel.DEBUG, "Less than");
         if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 3])] = params[0] < params[1] ? 1 : 0;
         else intcode[toIntExact(intcode[position + 3]) + relativeBase] = params[0] < params[1] ? 1 : 0;
         increasePosition(4);
     }
 
     private void equals(long[] params, String paramMode) {
-        log(LoggingLevel.DEBUG, "Equals");
+        logger.log(LogLevel.DEBUG, "Equals");
         if (!paramMode.equals("2")) intcode[toIntExact(intcode[position + 3])] = params[0] == params[1] ? 1 : 0;
         else intcode[toIntExact(intcode[position + 3]) + relativeBase] = params[0] == params[1] ? 1 : 0;
         increasePosition(4);
     }
 
     private void setRelativeBase(long[] params) {
-        log(LoggingLevel.DEBUG, "Set relative base to " + (relativeBase+params[0]));
+        logger.log(LogLevel.DEBUG, "Set relative base to " + (relativeBase+params[0]));
         relativeBase += params[0];
         increasePosition(2);
     }
 
     private void increasePosition(int steps) {
         op = "000000" + intcode[(position += steps)];
-    }
-
-    private void log(LoggingLevel messageLevel, String logMessage) {
-        if (messageLevel.level <= logging.level) System.out.println("> Computer: " + logMessage);
     }
 
     BlockingQueue<Long> getOutputQueue() {
@@ -215,12 +219,12 @@ class IntcodeComputer implements Runnable {
     }
 }
 
-enum LoggingLevel {
-    DEBUG(3), IO(2), INFO(1), QUIET(0);
+enum LogLevel {
+    RIDICULOUS(5), DEBUG(4), UNNECESSARY(3), IO(2), INFO(1), QUIET(0);
 
     public final int level;
 
-    LoggingLevel(int level) {
+    LogLevel(int level) {
         this.level = level;
     }
 }
