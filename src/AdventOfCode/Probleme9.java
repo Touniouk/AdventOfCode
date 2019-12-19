@@ -218,13 +218,3 @@ class IntcodeComputer implements Runnable {
         return isRunning;
     }
 }
-
-enum LogLevel {
-    RIDICULOUS(5), DEBUG(4), UNNECESSARY(3), IO(2), INFO(1), QUIET(0);
-
-    public final int level;
-
-    LogLevel(int level) {
-        this.level = level;
-    }
-}
