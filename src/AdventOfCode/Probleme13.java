@@ -26,7 +26,7 @@ public class Probleme13 {
                 .findFirst().get().split(",")).mapToLong(Long::parseLong).toArray();
         Probleme13 p = new Probleme13();
         p.logger = new Logger(p, LogLevel.DEBUG);
-//        p.part1();
+        p.part1();
         p.part2();
     }
 
@@ -44,7 +44,7 @@ public class Probleme13 {
         IntcodeComputer computer = new IntcodeComputer(memory, LogLevel.IO);
         GUI = new GameGUI(computer, true);
         GUI.buildAndShowGUI();
-        logger.log(LogLevel.INFO, "Final score: " + Arrays.toString(runComputer(computer)));
+        logger.info("Final score: " + Arrays.toString(runComputer(computer)));
         GUI.close();
     }
 
@@ -55,9 +55,9 @@ public class Probleme13 {
         do {
             // Get all three outputs
             logger.log(LogLevel.DEBUG, "Waiting for output: " + computer.getOutputQueue());
-            if ((input[0] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) ;
-            if ((input[1] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) ;
-            if ((input[2] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) ;
+            if ((input[0] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) break;
+            if ((input[1] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) break;
+            if ((input[2] = toIntExact(computer.getOutputQueue().take())) == computer.POISON) break;
             // Check if it's a score update
             if (input[0] == -1 && input[1] == 0) {
                 logger.log(LogLevel.UNNECESSARY, "Score: " + score);
@@ -187,10 +187,47 @@ class Logger {
         logging = initialLogLevel;
     }
 
-    void setLogLevel(LogLevel newLogLevel) { logging = newLogLevel; }
+    void setLogLevel(LogLevel newLogLevel) {
+        logging = newLogLevel;
+    }
 
     void log(LogLevel messageLevel, String logMessage) {
         if (messageLevel.level <= logging.level)
             System.out.println("> " + caller.getClass().getSimpleName() + ": " + logMessage);
+    }
+
+    void info(String logMessage) {
+        if (LogLevel.INFO.level <= logging.level)
+            System.out.println("> " + caller.getClass().getSimpleName() + ": " + logMessage);
+    }
+
+    void io(String logMessage) {
+        if (LogLevel.IO.level <= logging.level)
+            System.out.println("> " + caller.getClass().getSimpleName() + ": " + logMessage);
+    }
+
+    void unnecessary(String logMessage) {
+        if (LogLevel.UNNECESSARY.level <= logging.level)
+            System.out.println("> " + caller.getClass().getSimpleName() + ": " + logMessage);
+    }
+
+    void debug(String logMessage) {
+        if (LogLevel.DEBUG.level <= logging.level)
+            System.out.println("> " + caller.getClass().getSimpleName() + ": " + logMessage);
+    }
+
+    void ridiculous(String logMessage) {
+        if (LogLevel.RIDICULOUS.level <= logging.level)
+            System.out.println("> " + caller.getClass().getSimpleName() + ": " + logMessage);
+    }
+}
+
+enum LogLevel {
+    RIDICULOUS(5), DEBUG(4), UNNECESSARY(3), IO(2), INFO(1), QUIET(0);
+
+    public final int level;
+
+    LogLevel(int level) {
+        this.level = level;
     }
 }
